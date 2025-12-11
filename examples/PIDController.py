@@ -58,11 +58,20 @@ class PIDController(FunctionalBlock):
         """
         return {"ControlInput": self.parameters["ControlOutput"].value}
 
-    def get_state(self) -> dict:
+    def get_state(self, keys: list[str] = None) -> dict:
         """
         Возвращает текущее состояние контроллера.
+        
+        Аргументы:
+            keys: Optional[list[str]] - Список ключей для фильтрации возвращаемых параметров
+        
+        Returns:
+            dict - Словарь с состоянием контроллера
         """
-        return {
+        # Возвращаем только параметры контроллера, игнорируя базовый метод
+        self.logger.debug(f'Сбор состояния PID-контроллера {self.name}')
+        
+        state = {
             "Setpoint": self.parameters["Setpoint"].value,
             "ProcessVariable": self.parameters["ProcessVariable"].value,
             "ControlOutput": self.parameters["ControlOutput"].value,
@@ -72,6 +81,13 @@ class PIDController(FunctionalBlock):
             "Integral": self.integral,
             "PreviousError": self.previous_error
         }
+        
+        # Фильтруем по keys, если указано
+        if keys is not None:
+            state = {k: v for k, v in state.items() if k in keys}
+        
+        self.logger.debug(f'Состояние PID-контроллера {self.name}: {state}')
+        return state
 
     def set_supervisor(self, supervisor) -> None:
         """
@@ -91,7 +107,7 @@ pid_controller_parameters = ParameterSet(
     Setpoint=Parameter("Setpoint", 100),  # Задание
     ProcessVariable=Parameter("ProcessVariable", 0),  # Текущее значение процесса
     Kp=Parameter("Kp", 1),  # Пропорциональный коэффициент
-    Ki=Parameter("Ki", 0),  # Интегральный коэффициент
-    Kd=Parameter("Kd", 0),  # Дифференциальный коэффициент
+    Ki=Parameter("Ki", 2),  # Интегральный коэффициент
+    Kd=Parameter("Kd", 1),  # Дифференциальный коэффициент
     ControlOutput=Parameter("ControlOutput", 0, sensor=True)  # Управляющее воздействие
 )

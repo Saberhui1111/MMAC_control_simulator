@@ -132,8 +132,15 @@ class SimulationEngine:
         model_state = self.model.get_state()
         self.logger.debug(f"Собираем реальное состояние системы управления для момента времени {self.time}")
         control_system_state = self.control_system.get_state()
-        controllers_state = self.control_system.supervisor.controller_bank.get_state()
-        estimators_state = self.control_system.supervisor.estimator_bank.get_state()
+        
+        # Получаем состояние контроллеров и эстиматоров, если они доступны
+        controllers_state = {}
+        estimators_state = {}
+        if hasattr(self.control_system, 'supervisor') and self.control_system.supervisor is not None:
+            if hasattr(self.control_system.supervisor, 'controller_bank') and self.control_system.supervisor.controller_bank is not None:
+                controllers_state = self.control_system.supervisor.controller_bank.get_state()
+            if hasattr(self.control_system.supervisor, 'estimator_bank') and self.control_system.supervisor.estimator_bank is not None:
+                estimators_state = self.control_system.supervisor.estimator_bank.get_state()
 
         # Записываем текущее состояние системы в модуль ведения истории
         self.logger.debug(f"Записываем историю для момента времени {self.time}")

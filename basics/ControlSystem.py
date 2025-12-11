@@ -44,23 +44,31 @@ class ControlSystem(FunctionalBlock):
         # self.supervisor.revert_estimators()
         # self.supervisor.revert_controllers()
 
-        self.logger.info(f"Начинаем работу с банком эстиматоров системы управления {self.name}")
-        self.supervisor.compute_estimators(tick_duration=tick_duration, save_backup=False, **kwargs)
-        self.supervisor.chose_estimator()
+        # Работа с банком эстиматоров (если он задан)
+        if hasattr(self.supervisor, 'estimator_bank') and self.supervisor.estimator_bank is not None:
+            self.logger.info(f"Начинаем работу с банком эстиматоров системы управления {self.name}")
+            self.supervisor.compute_estimators(tick_duration=tick_duration, save_backup=False, **kwargs)
+            self.supervisor.chose_estimator()
+            self.logger.info(f"Итоговый эстиматор {self.supervisor.current_estimator}")
 
-        self.logger.info(f"Итоговый эстиматор {self.supervisor.current_estimator}")
+        # Работа с банком контроллеров (если он задан)
+        if hasattr(self.supervisor, 'controller_bank') and self.supervisor.controller_bank is not None:
+            self.logger.info(f"Начинаем работу с банком контроллеров системы управления {self.name}")
+            self.supervisor.compute_controllers(tick_duration=tick_duration, save_backup=False, **kwargs)
+            self.supervisor.choose_controller()
+            self.logger.info(f"Итоговый контроллер {self.supervisor.current_controller}")
 
-        self.logger.info(f"Начинаем работу с банком контроллеров системы управления {self.name}")
-        self.supervisor.compute_controllers(tick_duration=tick_duration, save_backup=False, **kwargs)
-        self.supervisor.choose_controller()
-
-        self.logger.info(f"Итоговый контроллер {self.supervisor.current_controller}")
-
-        self.logger.info(f"Начинаем вычисление управляющих воздействий {self.name}")
-        controller = copy.deepcopy(self.supervisor.controller_bank[self.supervisor.current_controller])
-        controller.compute(tick_duration=tick_duration)
-        self.control_actions = controller.read_sensors(keys=self.control_action_keys)
-        self.logger.info(f"Итоговые управляющие воздействия {self.control_actions}")
+            # Вычисление управляющих воздействий
+            if self.supervisor.current_controller is not None:
+                self.logger.info(f"Начинаем вычисление управляющих воздействий {self.name}")
+                controller = copy.deepcopy(self.supervisor.controller_bank[self.supervisor.current_controller])
+                controller.compute(tick_duration=tick_duration)
+                self.control_actions = controller.read_sensors(keys=self.control_action_keys)
+                self.logger.info(f"Итоговые управляющие воздействия {self.control_actions}")
+            else:
+                self.logger.warning(f"Контроллер не выбран, управляющие воздействия не вычислены")
+        else:
+            self.logger.warning(f"Банк контроллеров не задан, управляющие воздействия не вычислены")
 
     def read_control_actions(self):
         return self.control_actions
@@ -72,8 +80,10 @@ class ControlSystem(FunctionalBlock):
         self.logger.info(f"Загружаем данные с сенсоров в систему управления {self.name}")
         self.logger.debug(f"Данные с сенсоров {data}")
 
-        self.supervisor.estimator_bank.load_variables(data=data)
-        self.supervisor.controller_bank.load_variables(data=data)
+        if hasattr(self.supervisor, 'estimator_bank') and self.supervisor.estimator_bank is not None:
+            self.supervisor.estimator_bank.load_variables(data=data)
+        if hasattr(self.supervisor, 'controller_bank') and self.supervisor.controller_bank is not None:
+            self.supervisor.controller_bank.load_variables(data=data)
 
     def get_state(self,  keys: list[str] = None) -> dict[str, Number | str]:
         res = super().get_state(keys=keys)
